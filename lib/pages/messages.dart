@@ -17,14 +17,6 @@ class _MessagesState extends State<Messages> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _messageController = TextEditingController();
   late String? userId;
-  static final List<Widget> _widgetOptions = <Widget>[
-    const Text(
-        'User Profile Screen'), // Replace with your actual User Profile Screen
-    const Text(
-        'Viewing Other User Profiles'), // Replace with your actual User Profiles Screen
-    const Text(
-        'Messaging Match Screen'), // Replace with your actual Messaging Match Screen
-  ];
 
   void sendMessage(String receiverUserId, String message) async {
     if (message.trim().isNotEmpty) {

@@ -143,15 +143,6 @@ class _UserProfileState extends State<UserProfile> {
         });
   }
 
-  static final List<Widget> _widgetOptions = <Widget>[
-    const Text(
-        'User Profile Screen'), // Replace with your actual User Profile Screen
-    const Text(
-        'Viewing Other User Profiles'), // Replace with your actual User Profiles Screen
-    const Text(
-        'Messaging Match Screen'), // Replace with your actual Messaging Match Screen
-  ];
-
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;

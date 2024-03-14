@@ -14,12 +14,6 @@ class _UserDiscoveryState extends State<UserDiscovery> {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  static final List<Widget> _widgetOptions = <Widget>[
-    const Text('User Profile Screen'), // Replace with your actual User Profile Screen (currently empty)
-    const Text('Viewing Other User Profiles'), // Replace with your actual User Profiles Screen
-    const Text('Messaging Match Screen'), // Replace with your actual Messaging Match Screen
-  ];
-
   //this function finds the next profile from firestore and gets it
   Future<DocumentSnapshot<Map<String, dynamic>>> getNextProfile() async{
     //firestore search
