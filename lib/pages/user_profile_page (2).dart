@@ -1,19 +1,13 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/media/audio_player_widget.dart';
 import 'package:flutter_application_1/media/media_item.dart';
-import 'package:flutter_application_1/media/video_player_widget.dart';
 import 'package:flutter_application_1/models/user_model.dart';
 import 'package:flutter_application_1/pages/messages.dart';
 import 'package:flutter_application_1/pages/user_discovery.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-
-enum MediaType { image, video, audio }
 
 class UserProfile extends StatefulWidget {
   const UserProfile({super.key});
@@ -82,21 +76,9 @@ class _UserProfileState extends State<UserProfile> {
   }
 
   Future<void> uploadMedia(String userId, File mediaFile, String type) async {
-    String fileName;
     // Generate a unique file name
-    switch (type) {
-      case 'image':
-        fileName = 'images/${userId}_${DateTime.now().millisecondsSinceEpoch}';
-        break;
-      case 'video':
-        fileName = 'videos/${userId}_${DateTime.now().millisecondsSinceEpoch}';
-        break;
-      case 'audio':
-        fileName = 'audio/${userId}_${DateTime.now().millisecondsSinceEpoch}';
-        break;
-      default:
-        throw 'Invalid media type';
-    }
+    String fileName =
+        'images/${userId}_${DateTime.now().millisecondsSinceEpoch}';
 
     // Upload to Firebase Storage
     Reference ref = FirebaseStorage.instance.ref().child(fileName);
@@ -141,6 +123,15 @@ class _UserProfileState extends State<UserProfile> {
           );
         });
   }
+
+  static final List<Widget> _widgetOptions = <Widget>[
+    const Text(
+        'User Profile Screen'), // Replace with your actual User Profile Screen
+    const Text(
+        'Viewing Other User Profiles'), // Replace with your actual User Profiles Screen
+    const Text(
+        'Messaging Match Screen'), // Replace with your actual Messaging Match Screen
+  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -221,9 +212,7 @@ class _UserProfileState extends State<UserProfile> {
   }
 
   Widget _displayMediaItem(DocumentSnapshot mediaDoc) {
-    final mediaType = mediaDoc['type'];
-    final mediaUrl = mediaDoc['url'];
-    switch (mediaType) {
+    switch (mediaDoc['type']) {
       case 'image':
         //check mediaDoc url if it is = to empty string; if so, display error message using snackbar
         if (mediaDoc['url'] == '') {
@@ -236,15 +225,53 @@ class _UserProfileState extends State<UserProfile> {
           fit: BoxFit.cover,
         );
       case 'video':
-        // Placeholder for video player widget
-        return VideoPlayerWidget(mediaUrl: mediaUrl);
+      //return VideoPlayerWidget(url : mediaDoc['url']);
       case 'audio':
-        // Placeholder for audio player widget
-        return AudioPlayerWidget(mediaUrl: mediaUrl);
+      //return AudioPlayerWidget(url : mediaDoc['url']);
 
       default:
         return const Placeholder();
     }
+  }
+
+  Future<void> _handleEditMedia(DocumentSnapshot mediaDoc) async {
+    // Example: Edit metadata via a Dialog
+    await showDialog(
+      context: context,
+      builder: (context) {
+        TextEditingController titleController = TextEditingController(
+            text: mediaDoc['images']); // Add more controllers
+
+        return AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: 'Title'),
+              ),
+              // ... Add fields for other editable metadata ...
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                mediaDoc.reference.update({
+                  'url': titleController.text,
+                  // ... Other metadata fields ...
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _handleDeleteMedia(DocumentSnapshot mediaDoc) async {
@@ -265,110 +292,11 @@ class _UserProfileState extends State<UserProfile> {
   }
 
 // This method handles the addition of new media
-  Future<void> _handleAddMedia(BuildContext context) async {
-    final MediaType? mediaType = await _showMediaTypeDialogue(context);
-    if (mediaType != null) {
-      final bool? useCamera = await _showImageSourceDialogue(context);
-      if (useCamera != null) {
-        File? mediaFile;
-        switch (mediaType) {
-          case MediaType.image:
-            mediaFile = await _pickImage(useCamera);
-            break;
-          case MediaType.video:
-            mediaFile = await _pickVideo(useCamera);
-            break;
-          case MediaType.audio:
-            mediaFile = await _pickAudio();
-            break;
-        }
-        if (mediaFile != null) {
-          await uploadMedia(
-              userId!, mediaFile, mediaType.toString().split('.').last);
-        }
-      }
-    }
-  }
-
-  Future<File?> _pickImage(bool useCamera) async {
-    final pickedFile = await ImagePicker().pickImage(
-      source: useCamera ? ImageSource.camera : ImageSource.gallery,
-      maxWidth: 1800,
-      maxHeight: 1800,
-      imageQuality: 88,
-    );
-    return pickedFile != null ? File(pickedFile.path) : null;
-  }
-
-  Future<File?> _pickVideo(bool useCamera) async {
-    await _checkAndRequestPermissions();
-    final XFile? pickedFile = await ImagePicker().pickVideo(
-      source: useCamera ? ImageSource.camera : ImageSource.gallery,
-    );
-    if (pickedFile != null) {
-      final videoFile = File(pickedFile.path);
-      return videoFile;
-    } else {
-      // User canceled or the pick operation failed
-      // Handle the case where no video was picked
-      print('No video was selected');
-      return null;
-    }
-  }
-
-  Future<File?> _pickAudio() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.audio,
-    );
-
-    if (result != null) {
-      return File(result.files.single.path!);
-    }
-    return null;
-  }
-
-// Call it inside your function before using pickImage ...
-  Future<void> _checkAndRequestPermissions() async {
-    var cameraStatus = await Permission.camera.status;
-    var galleryStatus = await Permission.storage.status;
-
-    if (!cameraStatus.isGranted) {
-      await Permission.camera.request();
-    }
-
-    if (!galleryStatus.isGranted) {
-      await Permission.storage.request();
-    }
-  }
-
-  Future<MediaType?> _showMediaTypeDialogue(BuildContext context) async {
-    return showDialog<MediaType>(
-      context: context,
-      builder: (BuildContext context) {
-        return SimpleDialog(
-          title: const Text('Select media type'),
-          children:
-              <MediaType>[MediaType.image, MediaType.video, MediaType.audio]
-                  .map((type) => SimpleDialogOption(
-                        onPressed: () => Navigator.pop(context, type),
-                        child: Text(_mediaTypeToString(type)),
-                      ))
-                  .toList(),
-        );
-      },
-    );
-  }
-
-  String _mediaTypeToString(MediaType type) {
-    switch (type) {
-      case MediaType.image:
-        return 'Image';
-      case MediaType.video:
-        return 'Video';
-      case MediaType.audio:
-        return 'Audio';
-      default:
-        return 'Unknown';
+  void _handleAddMedia(BuildContext context) async {
+    final bool? useCamera = await _showImageSourceDialogue(context);
+    if (useCamera != null) {
+      await (useCamera ? getImage(true) : getImage(false));
+      await uploadMedia(userId!, _image_profile, "image");
     }
   }
 
@@ -499,9 +427,13 @@ class _UserProfileState extends State<UserProfile> {
                   default:
                     if (snapshot.data?.docs.isEmpty ?? true) {
                       // Display a friendly message when there's no media
-                      return const Column(
+                      return Column(
                         children: [
-                          Text('No media yet, add your first item!'),
+                          const Text('No media yet, add your first item!'),
+                          IconButton(
+                            icon: const Icon(Icons.add_a_photo),
+                            onPressed: () => _handleAddMedia(context),
+                          ),
                         ],
                       );
                     } else {
@@ -521,8 +453,10 @@ class _UserProfileState extends State<UserProfile> {
                         itemBuilder: (context, index) {
                           DocumentSnapshot mediaDoc =
                               snapshot.data!.docs[index];
+
                           return MediaItem(
                             mediaDoc: mediaDoc,
+                            //onEdit: () => _handleEditMedia(mediaDoc),
                             onDelete: () => _handleDeleteMedia(mediaDoc),
                           );
                         },

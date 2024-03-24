@@ -1,21 +1,23 @@
+// This is a separate widget for a single media item
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/media/AudioPlayerWidget.dart';
-import 'package:flutter_application_1/media/VideoPlayerWidget.dart';
+import 'package:flutter_application_1/media/audio_player_widget.dart';
+import 'package:flutter_application_1/media/video_player_widget.dart';
 import 'package:photo_view/photo_view.dart';
 
-// This is a separate widget for a single media item
 class MediaItem extends StatelessWidget {
   final DocumentSnapshot mediaDoc;
+  //final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const MediaItem({
     Key? key,
     required this.mediaDoc,
+    //required this.onEdit,
     required this.onDelete,
   }) : super(key: key);
 
-  void _showVideoFullScreen(BuildContext context, String mediaUrl) {
+  void _showVideoFullScreen(BuildContext context, String mediaUrl){
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -25,11 +27,11 @@ class MediaItem extends StatelessWidget {
             child: VideoPlayerWidget(mediaUrl: mediaUrl),
           ),
         ),
-      ),
+        ),
     );
   }
 
-  void _handleMediaTap(BuildContext context, String mediaType, String mediaUrl) {
+  void _handleMediaTap(BuildContext context, String mediaType, String mediaUrl){
     switch (mediaType) {
       case 'video':
         _showFullScreenWidget(context, VideoPlayerWidget(mediaUrl: mediaUrl));
@@ -39,28 +41,28 @@ class MediaItem extends StatelessWidget {
         break;
       case 'image':
         _showFullScreenWidget(
-          context,
+          context, 
           PhotoView(
             imageProvider: NetworkImage(mediaUrl),
-            backgroundDecoration: const BoxDecoration(color: Colors.transparent),
+            backgroundDecoration: BoxDecoration(color: Colors.transparent),
           ),
-        );
+          );
         break;
+
       default:
-        break;
     }
   }
 
-  void _showFullScreenWidget(BuildContext context, Widget child) {
+  void _showFullScreenWidget(BuildContext context, Widget child){
     Navigator.push(
-      context,
+      context, 
       MaterialPageRoute(
-        builder: (context) => Scaffold(
+        builder: (context)=> Scaffold(
           appBar: AppBar(),
           body: Center(child: child),
-        ),
-      ),
-    );
+        )
+        )
+      );
   }
 
   @override
@@ -70,39 +72,33 @@ class MediaItem extends StatelessWidget {
     final String mediaType = mediaDoc['type'];
 
     Widget childMedia;
+
     switch (mediaType) {
       case 'image':
         childMedia = Image.network(mediaUrl, fit: BoxFit.cover);
         break;
       case 'video':
-        childMedia = VideoPlayerWidget(
-            mediaUrl: mediaUrl);
+        childMedia = VideoPlayerWidget(mediaUrl: mediaUrl);
         break;
       case 'audio':
-        childMedia = AudioPlayerWidget(
-            mediaUrl: mediaUrl);
-        break;
+        childMedia = AudioPlayerWidget(mediaUrl: mediaUrl);
       default:
-        throw 'Unknown media type: $mediaType';
+      throw 'unknown media type: $mediaType';
     }
     return GridTile(
-      header: GridTileBar(
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.play_arrow), 
-          onPressed: () {},
-        ),
-        title: Text(mediaType),
-      ),
       footer: GridTileBar(
-        backgroundColor: Colors.black45,
+        backgroundColor: Colors.black,
+
         leading: IconButton(
           icon: const Icon(Icons.delete),
           onPressed: onDelete,
         ),
       ),
       child: GestureDetector(
-        onTap: () => _handleMediaTap(context, mediaType, mediaUrl),
+        onTap: () =>
+        _handleMediaTap(context, mediaType, mediaUrl),
+        
+          // Handle media item tap, e.g., open in full screen or play video
         child: childMedia,
       ),
     );

@@ -20,12 +20,23 @@ class _MessagesState extends State<Messages> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _messageController = TextEditingController();
   late String? userId;
-  late String? userIdReceiver;
+
+  @override
+  void initState() {
+    super.initState();
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // Implement your logic to handle incoming messages here.
+      // For example, you might want to show a notification or update the UI.
+    });
+
+    Future.delayed(Duration.zero, () {
+      userId = Provider.of<UserModel>(context, listen: false).userId;
+    });
+  }
 
   void sendMessage(String receiverUserId, String message) async {
     if (message.trim().isNotEmpty) {
-      // save message to firestore 'messages' collection
-      await _firestore.collection('message').add({
+      await _firestore.collection('messages').add({
         'senderId': userId,
         'receiverId': receiverUserId,
         'timestamp': FieldValue.serverTimestamp(),
@@ -36,70 +47,54 @@ class _MessagesState extends State<Messages> {
   }
 
   Future<void> _onItemTapped(int index) async {
+    if (index == _selectedIndex) {
+      // Prevent navigation to the same page
+      return;
+    }
+
     setState(() {
       _selectedIndex = index;
     });
+
+    Widget page;
     switch (index) {
       case 0:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const UserProfile()),
-        );
+        page = const UserProfile();
         break;
-
       case 1:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const UserDiscovery()),
-        );
+        page = const UserDiscovery();
         break;
-
       case 2:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const Messages()),
-        );
-        break;
-        
+        return; // Current page, do nothing
       case 3:
         await FirebaseAuth.instance.signOut();
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-        );
+        page = const LoginPage();
         break;
+      default:
+        return;
     }
+
+    Navigator.push(context, MaterialPageRoute(builder: (context) => page));
   }
 
-  @override
-  void initState() {
-    super.initState();
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      // Handle incoming messages for real-time updates
-      // Update the message list view with a new message
-    });
-    userId = Provider.of<UserModel>(context, listen: false).userId;
-  }
-
-
-  Widget itemBuilder(BuildContext context, snapshot) {
+  Widget itemBuilder(BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
     return ListView.builder(
-                itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              final matchDoc = snapshot.data!.docs[index];
-              return ListTile(
-                title: Text(matchDoc['matchedUsername']),
-                leading: CircleAvatar(
-                  backgroundImage: NetworkImage(matchDoc['matchedUserImageUrl']),
-                ),
-                onTap: () {
-                  userIdReceiver = matchDoc['matchedUserId'];
-                  // Navigate to chat screen with userIdReceiver
-                  // e.g., Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(userIdReceiver: userIdReceiver)))
-                },
-              );
-            },
-          );
+      itemCount: snapshot.data!.docs.length,
+      itemBuilder: (context, index) {
+        final matchDoc = snapshot.data!.docs[index];
+        return ListTile(
+          title: Text(matchDoc['matchedUsername']),
+          leading: CircleAvatar(
+            backgroundImage: NetworkImage(matchDoc['matchedUserImageUrl'] ?? 'default_image_url'),
+          ),
+          onTap: () {
+            String? userIdReceiver = matchDoc['matchedUserId'];
+            // Navigate to chat screen with userIdReceiver
+            // e.g., Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(userIdReceiver: userIdReceiver)))
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -108,37 +103,27 @@ class _MessagesState extends State<Messages> {
       appBar: AppBar(
         title: const Text('Messages'),
       ),
-      //body: Center(
-      //child: _widgetOptions.elementAt(_selectedIndex),
-      //),
       body: StreamBuilder<QuerySnapshot>(
-        //stream of matches where the user is involved
         stream: _firestore
             .collection('matches')
             .where('users', arrayContains: userId)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            // ERROR 1: Fixed equality operator
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
+
           if (snapshot.hasError) {
-            return const Center(
-              child: Text('Error fetching matches'),
-            );
+            return const Center(child: Text('Error fetching matches'));
           }
+
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text('No matches yet'),
-            );
+            return const Center(child: Text('No matches yet'));
           }
-          //assuming that each match document contains 'matchedUserId', 'matchedUsername', 'matchedUserImageUrl'
-          return itemBuilder(context, snapshot); // ERROR 2: see line 50
+
+          return itemBuilder(context, snapshot);
         },
       ),
-      
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(

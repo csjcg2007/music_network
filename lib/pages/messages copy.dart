@@ -9,7 +9,7 @@ import 'package:flutter_application_1/pages/user_profile_page.dart';
 import 'package:provider/provider.dart';
 
 class Messages extends StatefulWidget {
-  const Messages({super.key});
+  const Messages({super.key}); 
 
   @override
   State<Messages> createState() => _MessagesState();
@@ -60,7 +60,7 @@ class _MessagesState extends State<Messages> {
           MaterialPageRoute(builder: (context) => const Messages()),
         );
         break;
-        
+
       case 3:
         await FirebaseAuth.instance.signOut();
         Navigator.push(
@@ -81,10 +81,35 @@ class _MessagesState extends State<Messages> {
     userId = Provider.of<UserModel>(context, listen: false).userId;
   }
 
-
-  Widget itemBuilder(BuildContext context, snapshot) {
-    return ListView.builder(
-                itemCount: snapshot.data!.docs.length,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Messages'),
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _firestore
+            .collection('matches')
+            .where('users', arrayContains: userId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text('Error fetching matches'),
+            );
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text('No matches yet'),
+            );
+          }
+          return ListView.builder(
+            itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
               final matchDoc = snapshot.data!.docs[index];
               return ListTile(
@@ -100,45 +125,8 @@ class _MessagesState extends State<Messages> {
               );
             },
           );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Messages'),
-      ),
-      //body: Center(
-      //child: _widgetOptions.elementAt(_selectedIndex),
-      //),
-      body: StreamBuilder<QuerySnapshot>(
-        //stream of matches where the user is involved
-        stream: _firestore
-            .collection('matches')
-            .where('users', arrayContains: userId)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            // ERROR 1: Fixed equality operator
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-          if (snapshot.hasError) {
-            return const Center(
-              child: Text('Error fetching matches'),
-            );
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text('No matches yet'),
-            );
-          }
-          //assuming that each match document contains 'matchedUserId', 'matchedUsername', 'matchedUserImageUrl'
-          return itemBuilder(context, snapshot); // ERROR 2: see line 50
         },
       ),
-      
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
