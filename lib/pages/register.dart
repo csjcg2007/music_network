@@ -86,7 +86,7 @@ class RegisterPageState extends State {
   Widget build(BuildContext context) {
     //final authService = Provider.of<Authentication>(context);
     return Scaffold(
-      appBar: AppBar(title: const Text("RegisterPage")),
+      appBar: AppBar(title: const Center(child: Text("RegisterPage"))),
       body: SingleChildScrollView(
           child: Column(
         children: [

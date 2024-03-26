@@ -49,7 +49,7 @@ class MyAppState extends State<MyApp> {
         if (settings.name == '/messages') {
           return MaterialPageRoute(
               builder: (context) =>
-                  const Messages()); // Replace with your page widget
+                   Messages()); // Replace with your page widget
         }
         // Handle other routes or return null for unhandled routes
         return null;

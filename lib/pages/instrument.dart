@@ -70,7 +70,7 @@ class _InstrumentState extends State<Instrument> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Instruments'),
+        title: const Center(child: Text('Select Instruments')),
       ),
       body: FutureBuilder(
         

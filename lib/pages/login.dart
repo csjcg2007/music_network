@@ -62,7 +62,7 @@ class LoginPageState extends State {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Login")),
+      appBar: AppBar(title: const Center(child: Text("Login"))),
       body: SingleChildScrollView(
           child: Column(
         children: [

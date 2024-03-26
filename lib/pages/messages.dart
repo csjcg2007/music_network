@@ -8,39 +8,89 @@ import 'package:flutter_application_1/pages/user_profile_page.dart';
 import 'package:provider/provider.dart';
 
 class Messages extends StatefulWidget {
-  const Messages({super.key});
+  late final String? receiverUserId;
+  late final String? receiverUserName;
+  Messages({Key? key, this.receiverUserId, this.receiverUserName})
+      : super(key: key);
 
   @override
   State<Messages> createState() => _MessagesState();
 }
 
 class _MessagesState extends State<Messages> {
-  int _selectedIndex = 0;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final TextEditingController _messageController = TextEditingController();
   late String? userId;
+  late String? userName;
+  int _selectedIndex =
+      0; // Keep track of the selected index for the bottom navigation bar
+  final List<Widget> _widgetOptions = [
+    const UserProfile(),
+    const UserDiscovery(),
+    Messages(),
+    const LoginPage(),
+  ];
 
   @override
   void initState() {
     super.initState();
     Future.delayed(Duration.zero, () {
       userId = Provider.of<UserModel>(context, listen: false).userId;
+      // Get 'username' from Firestore
+      _firestore
+          .collection('users')
+          .doc(userId)
+          .get()
+          .then((DocumentSnapshot<Map<String, dynamic>> snapshot) {
+        if (snapshot.exists) {
+          userName = snapshot.data()!['username'];
+          print("Username: ${snapshot.data()!['username']}");
+        }
+      });
+
+      // Get the username of receiverUserId from Firestore
+      _firestore
+          .collection('users')
+            .doc(widget.receiverUserId)
+          .get()
+          .then((DocumentSnapshot<Map<String, dynamic>> snapshot) {
+        if (snapshot.exists) {
+          widget.receiverUserName = snapshot.data()!['username'];
+          print("Receiver Username: ${snapshot.data()!['username']}");
+        }
+      });
     });
   }
 
+  Future<String?> fetchUserId() async {
+    // Simulate an async operation to fetch userId, like fetching from Provider or secure storage
+    await Future.delayed(
+        Duration.zero); // This is just to simulate an asynchronous task
+    userId = Provider.of<UserModel>(context, listen: false).userId;
+    return userId;
+  }
+
   void sendMessage(String receiverUserId, String message) async {
-    if (message.trim().isNotEmpty) {
+    if (message.trim().isEmpty) {
+      return;
+    }
+
+    try {
       await _firestore.collection('messages').add({
         'senderId': userId,
         'receiverId': receiverUserId,
         'timestamp': FieldValue.serverTimestamp(),
-        'content': message,
+        'content': message.trim(),
       });
+
       _messageController.clear();
+    } catch (error) {
+      print("Error sending message: $error");
     }
   }
 
   Future<void> _onItemTapped(int index) async {
+    print("Tapped index: $index");
     if (index == _selectedIndex) {
       // Prevent navigation to the same page
       return;
@@ -48,6 +98,7 @@ class _MessagesState extends State<Messages> {
 
     setState(() {
       _selectedIndex = index;
+      print("Updated _selectedIndex: $_selectedIndex");
     });
 
     Widget page;
@@ -71,51 +122,78 @@ class _MessagesState extends State<Messages> {
     Navigator.push(context, MaterialPageRoute(builder: (context) => page));
   }
 
-  Widget itemBuilder(BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
-    return ListView.builder(
-      itemCount: snapshot.data!.docs.length,
-      itemBuilder: (context, index) {
-        final matchDoc = snapshot.data!.docs[index];
-        return ListTile(
-          title: Text(matchDoc['matchedUsername']),
-          leading: CircleAvatar(
-            backgroundImage: NetworkImage(matchDoc['matchedUserImageUrl'] ?? 'default_image_url'),
-          ),
-          onTap: () {
-            String? userIdReceiver = matchDoc['matchedUserId'];
-            // Navigate to chat screen with userIdReceiver
-            // e.g., Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(userIdReceiver: userIdReceiver)))
-          },
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Messages'),
+        title: const Center(child: Text('Messages')),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore
-            .collection('matches')
-            .where('users', arrayContains: userId)
-            .snapshots(),
+      body: FutureBuilder<String?>(
+        // await 1 milliseconds to get the userId
+        // future: Future.delayed(const Duration(milliseconds: 1)),
+        future: fetchUserId(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError) {
-            return const Center(child: Text('Error fetching matches'));
+          final userId = snapshot.data;
+          if (userId == null) {
+            return const Center(child: Text("User ID not found"));
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No matches yet'));
-          }
+          return Column(
+            children: <Widget>[
+              //_widgetOptions.elementAt(_selectedIndex),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: _firestore
+                      .collection('messages')
+                      .where('senderId', isEqualTo: userId)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-          return itemBuilder(context, snapshot);
+                    var messages = snapshot.data!.docs;
+                    return ListView.builder(
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        var message =
+                            messages[index].data() as Map<String, dynamic>;
+
+                        return ListTile(
+                          title: Text('${userName!}:'),
+                          subtitle: Text(
+                              "${message['content']}: ${message['timestamp'].toDate()}"),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TextField(
+                  controller: _messageController,
+                  decoration: InputDecoration(
+                    hintText: "Enter your message here...",
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.send),
+                      onPressed: () => sendMessage(
+                          widget.receiverUserId!,
+                          _messageController
+                              .text), // Ensure you pass userId here
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
         },
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -138,7 +216,7 @@ class _MessagesState extends State<Messages> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blue,
+        selectedItemColor: Colors.deepPurple,
         onTap: _onItemTapped,
       ),
     );

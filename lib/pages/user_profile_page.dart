@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/media/audio_player_widget.dart';
 import 'package:flutter_application_1/media/media_item.dart';
 import 'package:flutter_application_1/media/video_player_widget.dart';
 import 'package:flutter_application_1/models/user_model.dart';
+import 'package:flutter_application_1/pages/login.dart';
 import 'package:flutter_application_1/pages/messages.dart';
 import 'package:flutter_application_1/pages/user_discovery.dart';
 import 'package:image_picker/image_picker.dart';
@@ -22,7 +24,6 @@ class UserProfile extends StatefulWidget {
 }
 
 class _UserProfileState extends State<UserProfile> {
-  int _selectedIndex = 0;
   List<String>? userInstruments;
   late File _image_profile;
   final imagePicker = ImagePicker();
@@ -33,6 +34,14 @@ class _UserProfileState extends State<UserProfile> {
 
   late String? userId;
   String? imageUrl;
+  
+  int _selectedIndex = 0;
+  final List<Widget> _widgetOptions = [
+    const UserProfile(),
+    const UserDiscovery(),
+    Messages(),
+    const LoginPage(),
+  ];
 
   @override
   void initState() {
@@ -142,39 +151,39 @@ class _UserProfileState extends State<UserProfile> {
         });
   }
 
-  void _onItemTapped(int index) {
+  Future<void> _onItemTapped(int index) async {
+    print("Tapped index: $index");
+    if (index == _selectedIndex) {
+      // Prevent navigation to the same page
+      return;
+    }
+
     setState(() {
       _selectedIndex = index;
+      print("Updated _selectedIndex: $_selectedIndex");
     });
+
+    Widget page;
     switch (index) {
       case 0:
-        //Navigator.pushNamed(context, 'userProfile');
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const UserProfile()),
-        );
-
-        break;
+        return; // Current page, do nothing
       case 1:
-        //Navigator.pushNamed(context, 'userDiscovery');
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const UserDiscovery()),
-        );
-
+        page = const UserDiscovery();
         break;
       case 2:
-        //Navigator.pushNamed(context, 'messages');
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const Messages()),
-        );
-
+        page = Messages();
+        break;
+      case 3:
+        await FirebaseAuth.instance.signOut();
+        page = const LoginPage();
         break;
       default:
+        return;
     }
-  }
 
+    Navigator.push(context, MaterialPageRoute(builder: (context) => page));
+  }
+  
   Future<String?> _getUserProfileImageUrl(String userId) async {
     var userDoc =
         await FirebaseFirestore.instance.collection('users').doc(userId).get();
@@ -376,7 +385,7 @@ class _UserProfileState extends State<UserProfile> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('User Profile'),
+        title: const Center(child: Text('User Profile')),
         actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.email),
@@ -386,9 +395,11 @@ class _UserProfileState extends State<UserProfile> {
           )
         ],
       ),
-      body: SingleChildScrollView(
+      body: 
+      SingleChildScrollView(
         child: Column(
           children: <Widget>[
+            //_widgetOptions.elementAt(_selectedIndex),
             const SizedBox(height: 20),
             const Text(
               'User name: ',
